@@ -3,6 +3,10 @@ import { getCollection } from "astro:content";
 import { Image } from "astro:assets";
 import Layout from "../../layouts/Layout.astro";
 
+// React Components for enhanced layout
+import ProjectTabs from "../../components/ProjectTabs";
+import ProjectGist from "../../components/ProjectGist";
+
 export async function getStaticPaths() {
     const projects = await getCollection("projects");
     return projects.map((project) => ({
@@ -13,6 +17,209 @@ export async function getStaticPaths() {
 
 const { project } = Astro.props;
 const { Content } = await project.render();
+
+const architectureDiagram = `
+graph LR
+    classDef ext fill:#1e1e2e,stroke:#475569,stroke-width:2px,color:#e2e8f0;
+    classDef kafka fill:#451a03,stroke:#fb923c,stroke-width:2px,color:#fed7aa;
+    classDef consumer fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#a7f3d0;
+    classDef db fill:#1e3a8a,stroke:#60a5fa,stroke-width:2px,color:#bfdbfe;
+    classDef api fill:#4c1d95,stroke:#a78bfa,stroke-width:2px,color:#ddd6fe;
+    classDef worker fill:#78350f,stroke:#fcd34d,stroke-width:2px,color:#fde68a;
+
+    subgraph Ingestion
+        D["IoT Devices"]:::ext --> K["Apache Kafka"]:::kafka
+    end
+
+    subgraph Consumers
+        K --> EC["Event Consumer"]:::consumer
+        K --> SC["Sample Consumer"]:::consumer
+        K --> CC["Condition Consumer"]:::consumer
+        K --> JC["Job Event Consumer"]:::consumer
+        K --> OC["OEE Consumer"]:::consumer
+    end
+
+    subgraph Storage
+        EC --> DB[("TimescaleDB")]:::db
+        SC --> DB
+        CC --> DB
+        JC --> DB
+        OC --> DB
+    end
+
+    subgraph API
+        DB --> SRV["API Server :8080"]:::api
+        SRV --> CL["Clients"]:::ext
+    end
+
+    subgraph Notifications
+        DB --> NW["Notification Worker"]:::worker
+        NW --> WH["Webhooks"]:::ext
+        NW --> TM["Teams"]:::ext
+        NW --> SL["Slack"]:::ext
+    end
+`;
+
+
+// Build tab content for this specific project if featured
+let tabContent: Record<string, string> = {};
+if (project.data.featured && project.data.sections) {
+        if (project.slug === 'industrial-things') {
+        tabContent = {
+            'architecture': `
+                <div class="prose prose-invert prose-lg max-w-none text-gray-300 leading-relaxed">
+                    <p>The platform follows a highly decoupled <strong>7-service microservice architecture</strong> designed for fault tolerance and horizontal scalability. By routing all heavy ingestion and state changes through Kafka, the API server remains responsive even during traffic spikes from shop-floor devices.</p>
+                    
+                    <h3 class="text-2xl font-bold text-white mb-4 mt-8">Core Services</h3>
+                    <ul class="space-y-4">
+                        <li><strong class="text-[var(--color-primary)]">API Server:</strong> Handles client requests, organizational hierarchy management, and device configuration.</li>
+                        <li><strong class="text-[var(--color-primary)]">Event Consumer:</strong> Processes discrete machine events (e.g., Execution, ControllerMode, PartCount) from Kafka into TimescaleDB.</li>
+                        <li><strong class="text-[var(--color-primary)]">Sample Consumer:</strong> Handles continuous numeric time-series data (e.g., SpindleSpeed, Temperature, Load).</li>
+                        <li><strong class="text-[var(--color-primary)]">Condition Consumer:</strong> Tracks machine fault states, warnings, and system alarms.</li>
+                        <li><strong class="text-[var(--color-primary)]">Job Event Consumer:</strong> Synchronizes ERP/MES production data with real-time machine activity.</li>
+                        <li><strong class="text-[var(--color-primary)]">OEE Consumer:</strong> Continuously aggregates state changes to update Availability, Performance, and Quality metrics.</li>
+                        <li><strong class="text-[var(--color-primary)]">Notification Worker:</strong> Evaluates subscriptions against the event bus and dispatches alerts via multi-channel webhooks.</li>
+                    </ul>
+                </div>
+            `,
+            'features': `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
+                    <div class="glass-panel p-6 rounded-2xl border border-[var(--color-glass-border)] bg-black/20">
+                        <div class="text-[var(--color-primary)] mb-4"><svg xmlns="http://www.svg.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,160H40V56H216V200ZM176,88v80a8,8,0,0,1-16,0V88a8,8,0,0,1,16,0ZM136,120v48a8,8,0,0,1-16,0V120a8,8,0,0,1,16,0ZM96,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z" opacity="0.2"></path><path d="M216,32H40A24,24,0,0,0,16,56V200a24,24,0,0,0,24,24H216a24,24,0,0,0,24-24V56A24,24,0,0,0,216,32Zm8,168a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V56a8,8,0,0,1,8-8H216a8,8,0,0,1,8,8ZM184,88v80a16,16,0,0,1-32,0V88a16,16,0,0,1,32,0Zm-16,80V88a8,8,0,0,0-16,0v80a8,8,0,0,0,16,0Zm-24-48v48a16,16,0,0,1-32,0V120a16,16,0,0,1,32,0Zm-16,48V120a8,8,0,0,0-16,0v48a8,8,0,0,0,16,0Zm-24-16v64a16,16,0,0,1-32,0V104a16,16,0,0,1,32,0Zm-16,64V104a8,8,0,0,0-16,0v64a8,8,0,0,0,16,0Z"></path></svg></div>
+                        <h3 class="text-xl font-bold text-white mb-2">Real-Time IoT Ingestion</h3>
+                        <ul class="text-sm text-gray-400 space-y-2 mt-4">
+                            <li>▹ Batch processing with LRU caching</li>
+                            <li>▹ Dead letter queues for unparseable data</li>
+                            <li>▹ Auto-component registration on first sight</li>
+                        </ul>
+                    </div>
+                    <div class="glass-panel p-6 rounded-2xl border border-[var(--color-glass-border)] bg-black/20">
+                        <div class="text-[var(--color-primary)] mb-4"><svg xmlns="http://www.svg.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256"><path d="M224,200h-8V40a8,8,0,0,0-8-8H152a8,8,0,0,0-8,8V80H96a8,8,0,0,0-8,8v40H48a8,8,0,0,0-8,8v64H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16Z" opacity="0.2"></path><path d="M224,192h-8V40a16,16,0,0,0-16-16H152a16,16,0,0,0-16,16V72H96A16,16,0,0,0,80,88v32H48a16,16,0,0,0-16,16v56H24a8,8,0,0,0,0,16H232a8,8,0,0,0,0-16ZM152,40h48V192H152ZM96,88h40V192H96ZM48,136H80v56H48Z"></path></svg></div>
+                        <h3 class="text-xl font-bold text-white mb-2">OEE Analytics</h3>
+                        <ul class="text-sm text-gray-400 space-y-2 mt-4">
+                            <li>▹ Availability × Performance × Quality</li>
+                            <li>▹ Nil semantics (distinguishing zero from missing data)</li>
+                            <li>▹ Short-stop detection algorithms</li>
+                        </ul>
+                    </div>
+                    <div class="glass-panel p-6 rounded-2xl border border-[var(--color-glass-border)] bg-black/20">
+                        <div class="text-[var(--color-primary)] mb-4"><svg xmlns="http://www.svg.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256"><path d="M216,104v8a48,48,0,0,1-48,48H120v40a8,8,0,0,1-13.66,5.66l-48-48a8,8,0,0,1,0-11.32l48-48A8,8,0,0,1,120,104v40h48a32,32,0,0,0,32-32v-8a8,8,0,0,1,16,0Z" opacity="0.2"></path><path d="M224,104v8a56.06,56.06,0,0,1-56,56H128v32a16,16,0,0,1-27.31,11.31l-48-48a16,16,0,0,1,0-22.62l48-48A16,16,0,0,1,128,104v32h40a40,40,0,0,0,40-40v-8a16,16,0,0,1,32,0ZM112,104l-48,48,48,48V152a8,8,0,0,0-8-8H64a8,8,0,0,0,0,16h32v28.69L59.31,152,96,115.31V144a8,8,0,0,0,8,8h64a56.06,56.06,0,0,0,56-56v-8a16,16,0,0,0-32,0v8A40,40,0,0,1,152,136H104a8,8,0,0,0-8,8Z"></path></svg></div>
+                        <h3 class="text-xl font-bold text-white mb-2">Event-Driven Alerting</h3>
+                        <ul class="text-sm text-gray-400 space-y-2 mt-4">
+                            <li>▹ Plugin-based EventBus architecture</li>
+                            <li>▹ Subscription pattern matching (exact + wildcard)</li>
+                            <li>▹ Duration conditions & rate limiting</li>
+                        </ul>
+                    </div>
+                    <div class="glass-panel p-6 rounded-2xl border border-[var(--color-glass-border)] bg-black/20">
+                        <div class="text-[var(--color-primary)] mb-4"><svg xmlns="http://www.svg.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256"><path d="M112,216a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V152a8,8,0,0,1,8-8h56a8,8,0,0,1,8,8Zm104-72H160a8,8,0,0,0-8,8v64a8,8,0,0,0,8,8h56a8,8,0,0,0,8-8V152A8,8,0,0,0,216,144ZM112,40a8,8,0,0,0-8-8H48a8,8,0,0,0-8,8v64a8,8,0,0,0,8,8h56a8,8,0,0,0,8-8Zm104-8H160a8,8,0,0,0-8,8v64a8,8,0,0,0,8,8h56a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32Z" opacity="0.2"></path><path d="M112,24H48A16,16,0,0,0,32,40v64a16,16,0,0,0,16,16h64a16,16,0,0,0,16-16V40A16,16,0,0,0,112,24Zm0,80H48V40h64v64Zm104-80H160a16,16,0,0,0-16,16v64a16,16,0,0,0,16,16h56a16,16,0,0,0,16-16V40A16,16,0,0,0,216,24Zm0,80H160V40h56v64ZM112,136H48a16,16,0,0,0-16,16v64a16,16,0,0,0,16,16h64a16,16,0,0,0,16-16V152A16,16,0,0,0,112,136Zm0,80H48V152h64v64Zm104-80H160a16,16,0,0,0-16,16v64a16,16,0,0,0,16,16h56a16,16,0,0,0,16-16V152A16,16,0,0,0,216,136Zm0,80H160V152h56v64Z"></path></svg></div>
+                        <h3 class="text-xl font-bold text-white mb-2">Notification System</h3>
+                        <ul class="text-sm text-gray-400 space-y-2 mt-4">
+                            <li>▹ Transactional outbox pattern</li>
+                            <li>▹ Multi-channel delivery (Slack, Teams, Email)</li>
+                            <li>▹ Exponential backoff retry mechanics</li>
+                        </ul>
+                    </div>
+                </div>
+            `,
+            'tech-stack': `
+                <div class="prose prose-invert max-w-none mb-6">
+                    <p>The platform relies heavily on the Go ecosystem for high-throughput concurrency, while TimescaleDB provides the bedrock for fast time-series analytical queries alongside standard relational data.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8">
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-colors">
+                        <h3 class="text-sm uppercase tracking-widest text-gray-400 font-semibold mb-4 font-mono border-b border-white/10 pb-2">Language</h3>
+                        <div class="flex flex-wrap gap-2"><span class="px-3 py-1 bg-black/40 text-gray-200 rounded-md text-sm border border-white/5">Go 1.22</span></div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-colors">
+                        <h3 class="text-sm uppercase tracking-widest text-gray-400 font-semibold mb-4 font-mono border-b border-white/10 pb-2">Databases</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1 bg-black/40 text-gray-200 rounded-md text-sm border border-white/5">TimescaleDB</span>
+                            <span class="px-3 py-1 bg-black/40 text-gray-200 rounded-md text-sm border border-white/5">PostgreSQL 17</span>
+                        </div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-colors">
+                        <h3 class="text-sm uppercase tracking-widest text-gray-400 font-semibold mb-4 font-mono border-b border-white/10 pb-2">Messaging</h3>
+                        <div class="flex flex-wrap gap-2"><span class="px-3 py-1 bg-black/40 text-gray-200 rounded-md text-sm border border-white/5">Apache Kafka</span></div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-colors">
+                        <h3 class="text-sm uppercase tracking-widest text-gray-400 font-semibold mb-4 font-mono border-b border-white/10 pb-2">Framework & Tooling</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1 bg-black/40 text-gray-200 rounded-md text-sm border border-white/5">Gin</span>
+                            <span class="px-3 py-1 bg-black/40 text-gray-200 rounded-md text-sm border border-white/5">sqlc</span>
+                            <span class="px-3 py-1 bg-black/40 text-gray-200 rounded-md text-sm border border-white/5">Goose</span>
+                        </div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-colors">
+                        <h3 class="text-sm uppercase tracking-widest text-gray-400 font-semibold mb-4 font-mono border-b border-white/10 pb-2">Infrastructure</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1 bg-black/40 text-gray-200 rounded-md text-sm border border-white/5">Docker</span>
+                            <span class="px-3 py-1 bg-black/40 text-gray-200 rounded-md text-sm border border-white/5">Kubernetes</span>
+                            <span class="px-3 py-1 bg-black/40 text-gray-200 rounded-md text-sm border border-white/5">Helm</span>
+                        </div>
+                    </div>
+                    <div class="bg-white/5 border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-colors">
+                        <h3 class="text-sm uppercase tracking-widest text-gray-400 font-semibold mb-4 font-mono border-b border-white/10 pb-2">Observability</h3>
+                        <div class="flex flex-wrap gap-2"><span class="px-3 py-1 bg-black/40 text-gray-200 rounded-md text-sm border border-white/5">Prometheus</span></div>
+                    </div>
+                </div>
+            `,
+            'event-system': `
+                <div class="prose prose-invert prose-lg max-w-none text-gray-300 leading-relaxed">
+                    <p>The platform implements a sophisticated <strong>plugin-based domain event architecture</strong>. Rather than tightly coupling services, actions emit strictly typed events that other domains can react to asynchronously.</p>
+                    
+                    <h3 class="text-2xl font-bold text-white mb-4">Event Naming Convention</h3>
+                    <p>Events follow a rigid dot-notation structure: <code>domain.entity.action</code></p>
+                    <ul class="font-mono text-sm space-y-2 bg-black/40 p-4 rounded-xl border border-white/5">
+                        <li><span class="text-[var(--color-primary)]">observation</span>.event.created</li>
+                        <li><span class="text-[var(--color-primary)]">device</span>.runtime.updated</li>
+                        <li><span class="text-[var(--color-primary)]">maintenance</span>.threshold.exceeded</li>
+                        <li><span class="text-[var(--color-primary)]">oee</span>.record.created</li>
+                    </ul>
+
+                    <h3 class="text-2xl font-bold text-white mt-8 mb-4">Subscription Evaluation Flow</h3>
+                    <p>When a user creates an alert rule (e.g., "Tell me when Device A is down for more than 5 minutes"), the Notification Worker runs the event through a multi-stage pipeline:</p>
+                    <ol>
+                        <li><strong>Pattern Matching:</strong> Does the event type match? Supports wildcards (e.g., <code>observation.*.created</code>).</li>
+                        <li><strong>Filter Rules:</strong> Do the payload values match the user's AND/OR logic rules?</li>
+                        <li><strong>Duration Conditions:</strong> Has this state been active continuously for X minutes?</li>
+                        <li><strong>Rate Limiting:</strong> Has this user been alerted about this recently?</li>
+                        <li><strong>Outbox Commit:</strong> Securely write the notification intent to the database within the same transaction.</li>
+                    </ol>
+                </div>
+            `,
+            'oee': `
+                <div class="prose prose-invert prose-lg max-w-none text-gray-300 leading-relaxed">
+                    <p>Overall Equipment Effectiveness (OEE) is the gold standard for measuring manufacturing productivity. Industrial Things calculates this continuously based on real-time state changes, rather than relying on delayed end-of-shift reports.</p>
+                    
+                    <div class="flex items-center gap-3 my-8 text-center">
+                        <div class="flex-1 bg-black/30 p-4 rounded-xl border border-white/5">
+                            <h4 class="text-[var(--color-primary)] font-bold mb-2">Availability</h4>
+                            <p class="text-sm">Run Hours / Planned Hours</p>
+                        </div>
+                        <div class="text-2xl font-light text-gray-500 shrink-0">&times;</div>
+                        <div class="flex-1 bg-black/30 p-4 rounded-xl border border-white/5">
+                            <h4 class="text-[var(--color-primary)] font-bold mb-2">Performance</h4>
+                            <p class="text-sm">(Total Parts &times; Ideal Cycle) / Run Hours</p>
+                        </div>
+                        <div class="text-2xl font-light text-gray-500 shrink-0">&times;</div>
+                        <div class="flex-1 bg-black/30 p-4 rounded-xl border border-white/5">
+                            <h4 class="text-[var(--color-primary)] font-bold mb-2">Quality</h4>
+                            <p class="text-sm">Good Parts / Total Parts</p>
+                        </div>
+                    </div>
+
+                    <h3 class="text-2xl font-bold text-white mb-4">Nil Semantics</h3>
+                    <p>A crucial design decision was implementing strict <strong>Nil Semantics</strong>. In many platforms, a missing value is treated as zero. In Industrial Things, <code>nil</code> explicitly means "we lack sufficient data to calculate this." If a machine hasn't run any parts today, its Performance is <code>nil</code>, not <code>0%</code>. This prevents skewed aggregates.</p>
+                    
+                    <h3 class="text-2xl font-bold text-white mt-8 mb-4">Value Capping</h3>
+                    <p>Performance anomalies (like an operator batch-entering 1,000 parts at once) can cause Performance to spike to 500%. The analytics engine caps individual metric components at 1.0 (100%) to ensure the overall OEE remains mathematically sound.</p>
+                </div>
+            `,
+
+        };
+    }
+}
 ---
 
 <Layout title={project.data.title}>
@@ -26,38 +233,22 @@ const { Content } = await project.render();
                     >←</span
                 > Back to Portfolio</a
             >
-            <article
-                class="glass-panel p-8 md:p-12 rounded-2xl border border-[var(--color-glass-border)]"
-            >
-                {
-                    project.data.heroImage && (
-                        <div class="mb-10 rounded-xl overflow-hidden shadow-2xl">
-                            <Image
-                                src={project.data.heroImage}
-                                alt=""
-                                class="w-full h-auto object-cover"
-                            />
-                        </div>
-                    )
-                }
-                <div class="mb-10">
-                    <h1
-                        class="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight"
-                    >
-                        {project.data.title}
-                    </h1>
-                    <div class="flex flex-wrap gap-2 mb-8">
-                        {
-                            project.data.stack.map((tech) => (
-                                <span class="px-4 py-1.5 bg-[var(--color-primary)]/10 text-[var(--color-primary)] rounded-full text-sm font-medium border border-[var(--color-primary)]/20 shadow-[0_0_10px_rgba(130,80,210,0.1)]">
-                                    {tech}
-                                </span>
-                            ))
-                        }
-                    </div>
-                    <div class="flex flex-wrap gap-4">
-                        {
-                            project.data.projectUrl && (
+
+            {project.data.featured ? (
+                /* Enhanced Layout */
+                <div>
+                    <div class="mb-10 animate-fade-in relative">
+                        {project.data.category && (
+                            <div class="mb-4 inline-block px-3 py-1 rounded-full border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/10 text-[var(--color-primary)] text-sm font-mono tracking-wide">
+                                {project.data.category}
+                            </div>
+                        )}
+                        <h1 class="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight drop-shadow-md">
+                            {project.data.title}
+                        </h1>
+                        
+                        <div class="flex flex-wrap gap-4 mb-8">
+                            {project.data.projectUrl && (
                                 <a
                                     href={project.data.projectUrl}
                                     class="btn bg-[var(--color-primary)] text-white hover:text-white hover:shadow-[0_0_20px_rgba(130,80,210,0.4)] px-6 py-3"
@@ -66,31 +257,137 @@ const { Content } = await project.render();
                                 >
                                     Live Demo
                                 </a>
-                            )
-                        }
-                        {
-                            project.data.repoUrl && (
+                            )}
+                            {project.data.repoUrl && (
                                 <a
                                     href={project.data.repoUrl}
                                     class="btn border border-white/20 text-white hover:bg-white/10 hover:border-white/40 px-6 py-3"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
-                                    Code
+                                    View Source
                                 </a>
-                            )
-                        }
+                            )}
+                        </div>
+                    </div>
+
+                    {project.data.heroImage && (
+                        <div class="mb-12 rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+                            <Image
+                                src={project.data.heroImage}
+                                alt={`${project.data.title} Hero Image`}
+                                class="w-full h-auto object-cover"
+                            />
+                        </div>
+                    )}
+
+                    <ProjectGist 
+                        description={project.data.description}
+                        role={project.data.role}
+                        timeline={project.data.timeline}
+                        highlights={project.data.highlights}
+                        client:load
+                    />
+
+                    {project.data.sections && project.data.sections.length > 0 && (
+                        <ProjectTabs 
+                            sections={project.data.sections} 
+                            content={tabContent}
+                            diagrams={project.slug === 'industrial-things' ? {
+                                'architecture': {
+                                    chart: architectureDiagram,
+                                    caption: 'Industrial Things — High-level system architecture'
+                                }
+                            } : undefined}
+                            client:load
+                        />
+                    )}
+
+                    <hr class="border-white/10 my-16" />
+
+                    <div class="prose prose-invert prose-lg md:prose-xl max-w-none text-gray-300 leading-relaxed mb-16">
+                        <Content />
+                    </div>
+
+                    <div class="mt-16">
+                        <h3 class="text-2xl font-bold text-white mb-6 font-mono border-b border-white/10 pb-4">Technologies Used</h3>
+                        <div class="flex flex-wrap gap-2">
+                            {project.data.stack.map((tech: string) => (
+                                <span class="px-4 py-1.5 bg-[var(--color-primary)]/10 text-[var(--color-primary)] rounded-full text-sm font-medium border border-[var(--color-primary)]/20 shadow-[0_0_10px_rgba(130,80,210,0.1)]">
+                                    {tech}
+                                </span>
+                            ))}
+                        </div>
                     </div>
                 </div>
-
-                <hr class="border-white/10 mb-10" />
-
-                <div
-                    class="prose prose-invert prose-lg md:prose-xl max-w-none text-gray-300 leading-relaxed"
+            ) : (
+                /* Legacy Layout */
+                <article
+                    class="glass-panel p-8 md:p-12 rounded-2xl border border-[var(--color-glass-border)]"
                 >
-                    <Content />
-                </div>
-            </article>
+                    {
+                        project.data.heroImage && (
+                            <div class="mb-10 rounded-xl overflow-hidden shadow-2xl">
+                                <Image
+                                    src={project.data.heroImage}
+                                    alt=""
+                                    class="w-full h-auto object-cover"
+                                />
+                            </div>
+                        )
+                    }
+                    <div class="mb-10">
+                        <h1
+                            class="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight"
+                        >
+                            {project.data.title}
+                        </h1>
+                        <div class="flex flex-wrap gap-2 mb-8">
+                            {
+                                project.data.stack.map((tech: string) => (
+                                    <span class="px-4 py-1.5 bg-[var(--color-primary)]/10 text-[var(--color-primary)] rounded-full text-sm font-medium border border-[var(--color-primary)]/20 shadow-[0_0_10px_rgba(130,80,210,0.1)]">
+                                        {tech}
+                                    </span>
+                                ))
+                            }
+                        </div>
+                        <div class="flex flex-wrap gap-4">
+                            {
+                                project.data.projectUrl && (
+                                    <a
+                                        href={project.data.projectUrl}
+                                        class="btn bg-[var(--color-primary)] text-white hover:text-white hover:shadow-[0_0_20px_rgba(130,80,210,0.4)] px-6 py-3"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        Live Demo
+                                    </a>
+                                )
+                            }
+                            {
+                                project.data.repoUrl && (
+                                    <a
+                                        href={project.data.repoUrl}
+                                        class="btn border border-white/20 text-white hover:bg-white/10 hover:border-white/40 px-6 py-3"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        Code
+                                    </a>
+                                )
+                            }
+                        </div>
+                    </div>
+
+                    <hr class="border-white/10 mb-10" />
+
+                    <div
+                        class="prose prose-invert prose-lg md:prose-xl max-w-none text-gray-300 leading-relaxed"
+                    >
+                        <Content />
+                    </div>
+                </article>
+            )}
         </div>
     </section>
 </Layout>

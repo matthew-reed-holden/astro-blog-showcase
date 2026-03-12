@@ -25,6 +25,19 @@ const projects = defineCollection({
         repoUrl: z.string().optional(),
         stack: z.array(z.string()),
         tags: z.array(z.string()).optional(),
+        role: z.string().optional(),
+        timeline: z.string().optional(),
+        category: z.string().optional(),
+        featured: z.boolean().optional(),
+        highlights: z.array(z.object({
+            label: z.string(),
+            value: z.string(),
+        })).optional(),
+        sections: z.array(z.object({
+            id: z.string(),
+            title: z.string(),
+            icon: z.string().optional(),
+        })).optional(),
     }),
 });
 
